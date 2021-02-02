@@ -3,7 +3,7 @@
 
 // Cria um objeto XBee e o payload que será enviado
 XBee xbee = XBee();
-char payload [1];
+char payload [1] = {0};
 
 
 // Define o endereço do XBee recebedor
@@ -66,24 +66,16 @@ void delivery_status() {
 }
 
 void set_0() {
-    // Tratamento de debounce do botão
-    static unsigned long lastInterrupt = 0;
-    unsigned long interruptTime = millis();
-    if (interruptTime - lastInterrupt > 200){
+    if (payload[0] != 0) {
         payload[0] = 0;
         send = true;
     }
-    lastInterrupt = interruptTime;
 }
 
 void set_1() {
-    // Tratamento de debounce do botão
-    static unsigned long lastInterrupt = 0;
-    unsigned long interruptTime = millis();
-    if (interruptTime - lastInterrupt > 200){
+    if (payload[0] != 1) {
         payload[0] = 1;
         send = true;
     }
-    lastInterrupt = interruptTime;
 }
 

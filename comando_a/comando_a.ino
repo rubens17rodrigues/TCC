@@ -1,6 +1,15 @@
 #include <XBee.h>
 #include <SoftwareSerial.h>
 
+#include <MQTT.h>
+#include <Ethernet.h>
+
+byte mac[] = {0x90, 0xA2, 0xDA, 0x00, 0x64, 0x50};
+byte ip[] = {192, 168, 100, 110};
+
+EthernetClient net;
+MQTTClient client;
+
 /*
    Tabela dos sensores:
    Código   | Sensor
@@ -10,6 +19,9 @@
 
 char code;
 bool code_received = false;
+
+const byte button = 2;
+const byte relay = 8;
 
 // Estabelece os pinos 4 e 5 para comunicação serial do XBee.
 SoftwareSerial xbee_serial(4,5);
@@ -28,28 +40,70 @@ void setup() {
     // Inicia a comunicação serial
     Serial.begin(9600);
 
-    pinMode(7, OUTPUT);
-}
+    // Configurações para o uso do MQTT
+    Ethernet.begin(mac, ip);
+    client.begin("rubens.cloud.shiftr.io", net);
+    // client.begin("192.168.100.72", net);
+    client.onMessage(messageReceived);
+    connect();
+
+    pinMode(relay, OUTPUT);
+    digitalWrite(relay, LOW);
+
+    pinMode(button, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(button), start, FALLING);
+}   
 
 void loop() {
+
+   client.loop();
+   if (!client.connected()) {
+       connect();
+   }
+
     status_xbee();
     if (code_received) {
         // atribui a mensagem do pacote a code 
         code = rx.getData(0);
-
-        operation ();
+        operation_xbee();
         code_received = false;
     }
 }
 
-void operation() {
+void start() {
+    // Tratamento de debounce do botão
+    static unsigned long lastInterrupt = 0;
+    unsigned long interruptTime = millis();
+    if (interruptTime - lastInterrupt > 200){
+        digitalWrite(relay, HIGH);
+    }
+    lastInterrupt = interruptTime;
+}
+
+void connect() {
+    Serial.print("Conectando...");
+    while (!client.connect("Atuador A", "rubens", "pYEml6K8Q321WxGB")){
+        Serial.print(".");
+        delay("1000");
+    }
+    Serial.println("\nConectado!");
+
+    client.subscribe("/Atuador_B/#");
+}
+
+void messageReceived(String &topic, String &payload) {
+    Serial.println("Entrada: " + topic + " - " + payload);
+    
+    if (payload == "B+") {
+        digitalWrite(relay, LOW);
+    }
+}
+
+void operation_xbee() {
     if (code == 0) {
-        digitalWrite(7, LOW);
-        Serial.println("publicar mqtt: B-");
+        client.publish("/Atuador_A", "A-");
     } else if (code == 1) {
-        // B+
-        digitalWrite(7, HIGH);
-        Serial.println("publicar mqtt: B+");
+        client.publish("/Atuador_A", "A+");
     }
 }
 
