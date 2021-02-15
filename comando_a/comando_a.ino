@@ -5,7 +5,7 @@
 #include <Ethernet.h>
 
 byte mac[] = {0x90, 0xA2, 0xDA, 0x00, 0x64, 0x50};
-byte ip[] = {192, 168, 100, 110};
+byte ip[] = {10, 32, 83, 234};
 
 EthernetClient net;
 MQTTClient client;
@@ -19,9 +19,12 @@ MQTTClient client;
 
 char code;
 bool code_received = false;
+bool flag = false;
+unsigned long relay_timer = 0;
 
 const byte button = 2;
 const byte relay = 8;
+
 
 // Estabelece os pinos 4 e 5 para comunicação serial do XBee.
 SoftwareSerial xbee_serial(4,5);
@@ -42,8 +45,8 @@ void setup() {
 
     // Configurações para o uso do MQTT
     Ethernet.begin(mac, ip);
-    client.begin("rubens.cloud.shiftr.io", net);
-    // client.begin("192.168.100.72", net);
+    //client.begin("rubens.cloud.shiftr.io", net);
+    client.begin("10.32.83.224", net);
     client.onMessage(messageReceived);
     connect();
 
@@ -67,6 +70,13 @@ void loop() {
         code = rx.getData(0);
         operation_xbee();
         code_received = false;
+    }
+
+    if (flag) {
+        if (millis() -relay_timer > 2000) {
+            digitalWrite(relay, LOW);
+            flag = false;
+        }
     }
 }
 
@@ -95,7 +105,8 @@ void messageReceived(String &topic, String &payload) {
     Serial.println("Entrada: " + topic + " - " + payload);
     
     if (payload == "B+") {
-        digitalWrite(relay, LOW);
+        flag = true;
+        relay_timer = millis();
     }
 }
 

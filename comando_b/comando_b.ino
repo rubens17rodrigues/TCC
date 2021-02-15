@@ -4,8 +4,8 @@
 #include <MQTT.h>
 #include <Ethernet.h>
 
-byte mac[] = {0x90, 0xA2, 0xDA, 0x00, 0x64, 0x50};
-byte ip[] = {192, 168, 100, 120};
+byte mac[] = {0x90, 0xA2, 0xDA, 0x00, 0x64, 0x51};
+byte ip[] = {10, 32, 83, 220};
 
 EthernetClient net;
 MQTTClient client;
@@ -19,6 +19,13 @@ MQTTClient client;
 
 char code;
 bool code_received = false;
+bool flag1 = false;
+bool flag2 = false;
+
+unsigned long timer1 = 0;
+unsigned long timer2 = 0;
+unsigned long relay_timer = 2000;
+
 
 const byte relay = 8;
 
@@ -42,8 +49,8 @@ void setup() {
 
     // Configurações para o uso do MQTT
     Ethernet.begin(mac, ip);
-    // client.begin("rubens.cloud.shiftr.io", net);
-    client.begin("192.168.100.72", net);
+    //client.begin("rubens.cloud.shiftr.io", net);
+    client.begin("10.32.83.224", net);
     client.onMessage(messageReceived);
     connect();
 
@@ -66,6 +73,21 @@ void loop() {
         operation_xbee();
         code_received = false;
     }
+
+    if (flag1) {
+        if ( millis() - timer1 > relay_timer) {
+            digitalWrite(relay, HIGH);
+            flag1 = false;
+        }
+    }
+
+    if (flag2) {
+        if ( millis() - timer2 > relay_timer) {
+            digitalWrite(relay, LOW);
+            flag2 = false;
+        }
+    }
+
 }
 
 void connect() {
@@ -83,10 +105,13 @@ void messageReceived(String &topic, String &payload) {
     Serial.println("Entrada: " + topic + " - " + payload);
     
     if (payload == "A+") {
-        digitalWrite(relay, HIGH);
+        flag1 = true;
+        timer1 = millis();
     } else if (payload == "A-") {
-        digitalWrite(relay, LOW);
+        flag2 = true;
+        timer2 = millis();
     }
+
 }
 
 void operation_xbee() {
